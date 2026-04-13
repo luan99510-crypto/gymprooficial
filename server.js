@@ -1,18 +1,19 @@
 const express = require('express');
 const mongoose = require('mongoose');
-const path = require('path'); // Adicionado para gerenciar caminhos
+const path = require('path');
 const app = express();
 
 app.use(express.json());
 app.use(express.static('.'));
 
-// Conexão com o Banco de Dados (Ajustado para não travar o servidor se o banco falhar)
-// Nota: Para salvar dados de verdade, você precisará de um banco no MongoDB Atlas depois.
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/gym_ultimate')
-    .then(() => console.log("✅ BANCO DE DADOS CONECTADO!"))
-    .catch(err => console.error("❌ ERRO NO BANCO (Local não funciona na nuvem):", err));
+// --- CONEXÃO COM O BANCO DE DADOS (MONGODB ATLAS) ---
+const mongoURI = 'mongodb+srv://luan99510_db_user:FZTztwpU0eeqsQgz@cluster0.fe9uvtc.mongodb.net/gym_ultimate?appName=Cluster0';
 
-// Rota principal para abrir o site
+mongoose.connect(mongoURI)
+    .then(() => console.log("✅ BANCO DE DADOS CONECTADO NO ATLAS!"))
+    .catch(err => console.error("❌ ERRO NO BANCO:", err));
+
+// Rota principal para garantir que o site abra
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
@@ -36,7 +37,9 @@ const Treino = mongoose.model('Treino', new mongoose.Schema({
     series: String
 }));
 
-// Rotas de API
+// --- ROTAS DE API ---
+
+// Cadastro
 app.post('/api/cadastro', async (req, res) => {
     try {
         const { user, senha } = req.body;
@@ -49,22 +52,28 @@ app.post('/api/cadastro', async (req, res) => {
     }
 });
 
+// Login
 app.post('/api/login', async (req, res) => {
-    const { user, senha } = req.body;
-    const u = await Usuario.findOne({ user, senha });
-    if (u) {
-        res.json({ autorizado: true, id: u._id, user: u.user });
-    } else {
-        res.status(401).json({ autorizado: false });
+    try {
+        const { user, senha } = req.body;
+        const u = await Usuario.findOne({ user, senha });
+        if (u) {
+            res.json({ autorizado: true, id: u._id, user: u.user });
+        } else {
+            res.status(401).json({ autorizado: false });
+        }
+    } catch (e) {
+        res.status(500).json({ erro: "Erro no servidor" });
     }
 });
 
+// Dieta e Treino
 app.post('/api/refeicoes', async (req, res) => { await new Refeicao(req.body).save(); res.json({ok:true}); });
 app.get('/api/refeicoes/:userId', async (req, res) => { res.json(await Refeicao.find({usuarioId: req.params.userId})); });
 app.post('/api/treinos', async (req, res) => { await new Treino(req.body).save(); res.json({ok:true}); });
 app.get('/api/treinos/:userId', async (req, res) => { res.json(await Treino.find({usuarioId: req.params.userId})); });
 
-// PORTA DINÂMICA (O segredo para o Render funcionar)
+// --- PORTA DINÂMICA ---
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
     console.log("-----------------------------------------");
