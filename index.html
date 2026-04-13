@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GYM PRO - Oficial</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root { --primary: #d4ff00; --bg: #050505; --card: #121212; --text: #fff; }
+        body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); margin: 0; padding-bottom: 90px; }
+        .app { max-width: 500px; margin: auto; padding: 20px; }
+        .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: #111; display: flex; justify-content: space-around; padding: 15px; border-top: 1px solid #222; z-index: 1000; }
+        .nav-item { background: none; border: none; color: #555; font-size: 1.2rem; cursor: pointer; transition: 0.3s; }
+        .nav-item.active { color: var(--primary); transform: translateY(-3px); }
+        .card { background: var(--card); border-radius: 18px; padding: 20px; margin-bottom: 15px; border: 1px solid #222; }
+        input { width: 100%; padding: 14px; margin: 8px 0; border-radius: 10px; border: 1px solid #333; background: #000; color: #fff; box-sizing: border-box; font-size: 16px; }
+        .btn { background: var(--primary); color: #000; border: none; padding: 16px; border-radius: 12px; font-weight: 900; width: 100%; cursor: pointer; text-transform: uppercase; }
+        .btn-outline { background: none; border: 1px solid #333; color: #888; margin-top: 10px; font-weight: bold; }
+        .tab-content { display: none; animation: fadeIn 0.4s ease; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .badge { background: #222; padding: 5px 12px; border-radius: 20px; font-size: 0.8rem; color: var(--primary); border: 1px solid var(--primary); }
+        .timer-display { font-size: 2.5rem; text-align: center; margin: 10px 0; font-weight: bold; color: var(--primary); }
+    </style>
+</head>
+<body>
+
+<div class="app">
+    <div id="auth-screen">
+        <h1 style="text-align:center; font-size: 2.5rem; color: var(--primary); margin-top: 50px;">GYM<span style="color:#fff">PRO</span></h1>
+        <div class="card" id="auth-box">
+            <h3 id="auth-title">Acessar Painel</h3>
+            <input type="text" id="user" placeholder="Usuário">
+            <input type="password" id="pass" placeholder="Senha">
+            <button class="btn" id="auth-btn" onclick="executarAuth()">Entrar</button>
+            <button class="btn btn-outline" onclick="alternarModo()" id="toggle-btn">Criar nova conta</button>
+        </div>
+    </div>
+
+    <div id="main-app" style="display:none">
+        <div id="home" class="tab-content" style="display:block">
+            <h2>Dashboard</h2>
+            <div class="card">
+                <p style="margin:0; color:#888">Consumo Diário (Meta 2500kcal)</p>
+                <h1 style="margin:10px 0"><span id="total-cal">0</span> <small>kcal</small></h1>
+                <div style="background:#222; height:8px; border-radius:4px"><div id="cal-bar" style="background:var(--primary); width:0%; height:100%; border-radius:4px; transition:1s;"></div></div>
+            </div>
+            <div class="card">
+                <h3><i class="fa-solid fa-stopwatch"></i> Descanso</h3>
+                <div class="timer-display" id="timer">01:00</div>
+                <div style="display:flex; gap:10px">
+                    <button class="btn" style="padding:10px" onclick="startTimer()">INICIAR</button>
+                    <button class="btn" style="padding:10px; background:#333; color:#fff" onclick="resetTimer()">LIMPAR</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="dieta" class="tab-content">
+            <h2>🍎 Nutrição</h2>
+            <div class="card">
+                <input type="text" id="food" placeholder="O que você comeu?">
+                <input type="number" id="cal" placeholder="Calorias">
+                <button class="btn" onclick="addRefeicao()">Registrar</button>
+            </div>
+            <div id="lista-dieta"></div>
+        </div>
+
+        <div id="treino" class="tab-content">
+            <h2>🏋️ Treino</h2>
+            <div class="card">
+                <input type="text" id="exc" placeholder="Exercício">
+                <input type="text" id="sets" placeholder="Séries (ex: 3x12)">
+                <button class="btn" onclick="addTreino()">Adicionar</button>
+            </div>
+            <div id="lista-treino"></div>
+        </div>
+    </div>
+</div>
+
+<nav class="bottom-nav" id="navbar" style="display:none">
+    <button class="nav-item active" onclick="switchTab(this, 'home')"><i class="fa-solid fa-chart-line"></i></button>
+    <button class="nav-item" onclick="switchTab(this, 'dieta')"><i class="fa-solid fa-utensils"></i></button>
+    <button class="nav-item" onclick="switchTab(this, 'treino')"><i class="fa-solid fa-dumbbell"></i></button>
+    <button class="nav-item" onclick="location.reload()"><i class="fa-solid fa-power-off"></i></button>
+</nav>
+
+<script>
+    let userData = null;
+    let modoCadastro = false;
+    let timerInterval;
+
+    function alternarModo() {
+        modoCadastro = !modoCadastro;
+        document.getElementById('auth-title').innerText = modoCadastro ? "Criar Conta" : "Acessar Painel";
+        document.getElementById('auth-btn').innerText = modoCadastro ? "Cadastrar Agora" : "Entrar";
+        document.getElementById('toggle-btn').innerText = modoCadastro ? "Já tenho conta" : "Criar nova conta";
+    }
+
+    async function executarAuth() {
+        const user = document.getElementById('user').value;
+        const senha = document.getElementById('pass').value;
+        const rota = modoCadastro ? '/api/cadastro' : '/api/login';
+
+        const res = await fetch(rota, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({user, senha})
+        });
+
+        const data = await res.json();
+        if (modoCadastro) {
+            if (res.status === 201) { alert("Sucesso! Agora faça login."); alternarModo(); }
+            else { alert(data.erro); }
+        } else {
+            if (data.autorizado) {
+                userData = data;
+                document.getElementById('auth-screen').style.display = 'none';
+                document.getElementById('main-app').style.display = 'block';
+                document.getElementById('navbar').style.display = 'flex';
+                carregarDados();
+            } else { alert("Dados incorretos!"); }
+        }
+    }
+
+    function switchTab(btn, tabId) {
+        document.querySelectorAll('.tab-content').forEach(t => t.style.display = 'none');
+        document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+        document.getElementById(tabId).style.display = 'block';
+        btn.classList.add('active');
+    }
+
+    function startTimer() {
+        let t = 60; clearInterval(timerInterval);
+        timerInterval = setInterval(() => {
+            t--; let m = Math.floor(t/60), s = t%60;
+            document.getElementById('timer').innerText = `${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
+            if(t<=0) { clearInterval(timerInterval); alert("Descanso Concluído!"); }
+        }, 1000);
+    }
+    function resetTimer() { clearInterval(timerInterval); document.getElementById('timer').innerText = "01:00"; }
+
+    async function addRefeicao() {
+        const alimento = document.getElementById('food').value;
+        const calorias = document.getElementById('cal').value;
+        await fetch('/api/refeicoes', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ usuarioId: userData.id, alimento, calorias })
+        });
+        document.getElementById('food').value = ''; document.getElementById('cal').value = '';
+        carregarDados();
+    }
+
+    async function addTreino() {
+        const exercicio = document.getElementById('exc').value;
+        const series = document.getElementById('sets').value;
+        await fetch('/api/treinos', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ usuarioId: userData.id, exercicio, series })
+        });
+        document.getElementById('exc').value = ''; document.getElementById('sets').value = '';
+        carregarDados();
+    }
+
+    async function carregarDados() {
+        const resD = await fetch(`/api/refeicoes/${userData.id}`);
+        const refeicoes = await resD.json();
+        let total = 0;
+        document.getElementById('lista-dieta').innerHTML = refeicoes.reverse().map(r => {
+            total += Number(r.calorias);
+            return `<div class="card" style="display:flex; justify-content:space-between"><span>${r.alimento}</span><span class="badge">${r.calorias} kcal</span></div>`;
+        }).join('');
+        document.getElementById('total-cal').innerText = total;
+        document.getElementById('cal-bar').style.width = Math.min((total/2500)*100, 100) + "%";
+
+        const resT = await fetch(`/api/treinos/${userData.id}`);
+        const treinos = await resT.json();
+        document.getElementById('lista-treino').innerHTML = treinos.map(t => `<div class="card"><strong>${t.exercicio}</strong><br><small>${t.series}</small></div>`).join('');
+    }
+</script>
+</body>
+</html>
