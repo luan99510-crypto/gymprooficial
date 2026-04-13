@@ -1,14 +1,21 @@
 const express = require('express');
 const mongoose = require('mongoose');
+const path = require('path'); // Adicionado para gerenciar caminhos
 const app = express();
 
 app.use(express.json());
 app.use(express.static('.'));
 
-// Conexão com o Banco de Dados
-mongoose.connect('mongodb://127.0.0.1:27017/gym_ultimate')
+// Conexão com o Banco de Dados (Ajustado para não travar o servidor se o banco falhar)
+// Nota: Para salvar dados de verdade, você precisará de um banco no MongoDB Atlas depois.
+mongoose.connect(process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/gym_ultimate')
     .then(() => console.log("✅ BANCO DE DADOS CONECTADO!"))
-    .catch(err => console.error("❌ ERRO NO BANCO:", err));
+    .catch(err => console.error("❌ ERRO NO BANCO (Local não funciona na nuvem):", err));
+
+// Rota principal para abrir o site
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
+});
 
 // Modelos dos Dados
 const Usuario = mongoose.model('Usuario', new mongoose.Schema({
@@ -29,7 +36,7 @@ const Treino = mongoose.model('Treino', new mongoose.Schema({
     series: String
 }));
 
-// Rota de Cadastro
+// Rotas de API
 app.post('/api/cadastro', async (req, res) => {
     try {
         const { user, senha } = req.body;
@@ -42,7 +49,6 @@ app.post('/api/cadastro', async (req, res) => {
     }
 });
 
-// Rota de Login
 app.post('/api/login', async (req, res) => {
     const { user, senha } = req.body;
     const u = await Usuario.findOne({ user, senha });
@@ -53,15 +59,15 @@ app.post('/api/login', async (req, res) => {
     }
 });
 
-// Rotas de Dieta e Treino
 app.post('/api/refeicoes', async (req, res) => { await new Refeicao(req.body).save(); res.json({ok:true}); });
 app.get('/api/refeicoes/:userId', async (req, res) => { res.json(await Refeicao.find({usuarioId: req.params.userId})); });
 app.post('/api/treinos', async (req, res) => { await new Treino(req.body).save(); res.json({ok:true}); });
 app.get('/api/treinos/:userId', async (req, res) => { res.json(await Treino.find({usuarioId: req.params.userId})); });
 
-app.listen(3000, () => {
+// PORTA DINÂMICA (O segredo para o Render funcionar)
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
     console.log("-----------------------------------------");
-    console.log("🚀 GYM PRO OFICIAL RODANDO!");
-    console.log("🌐 ACESSE: http://localhost:3000");
+    console.log(`🚀 GYM PRO OFICIAL RODANDO NA PORTA ${PORT}!`);
     console.log("-----------------------------------------");
 });
